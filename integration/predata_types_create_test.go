@@ -143,6 +143,55 @@ var _ = Describe("backup integration create statement tests", func() {
 			structmatcher.ExpectStructsToMatchIncluding(&domainType, &resultTypes[0], "Schema", "Name", "Type", "DefaultVal", "BaseType", "NotNull", "Collation")
 		})
 	})
+	Describe("PrintCreateRangeTypeStatement", func() {
+		typeMetadata := backup.ObjectMetadata{}
+		It("creates a range type with a collation and opclass", func() {
+			rangeType := backup.Type{
+				Oid:            0,
+				Schema:         "public",
+				Name:           "textrange",
+				Type:           "r",
+				SubType:        "text",
+				Collation:      "public.some_coll",
+				SubTypeOpClass: "pg_catalog.text_ops",
+			}
+			testhelper.AssertQueryRuns(connection, "CREATE COLLATION public.some_coll (lc_collate = 'POSIX', lc_ctype = 'POSIX');")
+			defer testhelper.AssertQueryRuns(connection, "DROP COLLATION public.some_coll")
+
+			backup.PrintCreateRangeTypeStatement(backupfile, toc, rangeType, typeMetadata)
+
+			testhelper.AssertQueryRuns(connection, buffer.String())
+			defer testhelper.AssertQueryRuns(connection, "DROP TYPE public.textrange")
+
+			resultTypes := backup.GetRangeTypes(connection)
+
+			Expect(len(resultTypes)).To(Equal(1))
+			structmatcher.ExpectStructsToMatchExcluding(&rangeType, &resultTypes[0], "Oid")
+		})
+		It("creates a range type in a specific schema with a subtype diff function", func() {
+			rangeType := backup.Type{
+				Oid:            0,
+				Schema:         "testschema",
+				Name:           "timerange",
+				Type:           "r",
+				SubType:        "time without time zone",
+				SubTypeOpClass: "pg_catalog.time_ops",
+				SubTypeDiff:    "testschema.time_subtype_diff",
+			}
+			testhelper.AssertQueryRuns(connection, "CREATE SCHEMA testschema;")
+			defer testhelper.AssertQueryRuns(connection, "DROP SCHEMA testschema CASCADE;")
+			testhelper.AssertQueryRuns(connection, "CREATE FUNCTION testschema.time_subtype_diff(x time, y time) RETURNS float8 AS 'SELECT EXTRACT(EPOCH FROM (x - y))' LANGUAGE sql STRICT IMMUTABLE;")
+
+			backup.PrintCreateRangeTypeStatement(backupfile, toc, rangeType, typeMetadata)
+
+			testhelper.AssertQueryRuns(connection, buffer.String())
+
+			resultTypes := backup.GetRangeTypes(connection)
+
+			Expect(len(resultTypes)).To(Equal(1))
+			structmatcher.ExpectStructsToMatchExcluding(&rangeType, &resultTypes[0], "Oid")
+		})
+	})
 	Describe("PrintCreateCollationStatement", func() {
 		It("creates a basic collation", func() {
 			testutils.SkipIfBefore6(connection)

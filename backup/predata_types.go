@@ -148,6 +148,29 @@ func PrintCreateEnumTypeStatements(metadataFile *utils.FileWithByteCount, toc *u
 	}
 }
 
+func PrintCreateRangeTypeStatement(metadataFile *utils.FileWithByteCount, toc *utils.TOC, rangeType Type, typeMetadata ObjectMetadata) {
+	start := metadataFile.ByteCount
+	typeFQN := utils.MakeFQN(rangeType.Schema, rangeType.Name)
+	metadataFile.MustPrintf("\n\nCREATE TYPE %s AS RANGE(\n\tSUBTYPE = %s", typeFQN, rangeType.SubType)
+
+	if rangeType.Collation != "" {
+		metadataFile.MustPrintf(",\n\tCOLLATION = %s", rangeType.Collation)
+	}
+	if rangeType.SubTypeOpClass != "" {
+		metadataFile.MustPrintf(",\n\tSUBTYPE_OPCLASS = %s", rangeType.SubTypeOpClass)
+	}
+	if rangeType.Canonical != "" {
+		metadataFile.MustPrintf(",\n\tCANONICAL = %s", rangeType.Canonical)
+	}
+	if rangeType.SubTypeDiff != "" {
+		metadataFile.MustPrintf(",\n\tSUBTYPE_DIFF = %s", rangeType.SubTypeDiff)
+	}
+	metadataFile.MustPrintf("\n);\n")
+
+	PrintObjectMetadata(metadataFile, typeMetadata, typeFQN, "TYPE")
+	toc.AddPredataEntry(rangeType.Schema, rangeType.Name, "TYPE", "", start, metadataFile)
+}
+
 func PrintCreateCollationStatements(metadataFile *utils.FileWithByteCount, toc *utils.TOC, collations []Collation, collationMetadata MetadataMap) {
 	for _, collation := range collations {
 		collationFQN := utils.MakeFQN(collation.Schema, collation.Name)

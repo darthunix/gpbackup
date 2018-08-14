@@ -214,6 +214,55 @@ var _ = Describe("backup integration tests", func() {
 			structmatcher.ExpectStructsToMatchIncluding(&shellTypeOtherSchema, &results[0], "Schema", "Name", "Type")
 		})
 	})
+	Describe("GetRangeTypes", func() {
+		It("returns a slice of a range type with a collation", func() {
+			testhelper.AssertQueryRuns(connection, "CREATE COLLATION public.some_coll (lc_collate = 'POSIX', lc_ctype = 'POSIX');")
+			defer testhelper.AssertQueryRuns(connection, "DROP COLLATION public.some_coll")
+			testhelper.AssertQueryRuns(connection, `CREATE TYPE public.textrange AS RANGE (
+	SUBTYPE = pg_catalog.text,
+	COLLATION = public.some_coll
+);`)
+			defer testhelper.AssertQueryRuns(connection, "DROP TYPE public.textrange")
+			results := backup.GetRangeTypes(connection)
+
+			Expect(len(results)).To(Equal(1))
+
+			expectedRangeType := backup.Type{
+				Oid:            0,
+				Schema:         "public",
+				Name:           "textrange",
+				Type:           "r",
+				SubType:        "text",
+				Collation:      "public.some_coll",
+				SubTypeOpClass: "pg_catalog.text_ops",
+			}
+			structmatcher.ExpectStructsToMatchExcluding(&expectedRangeType, &results[0], "Oid")
+		})
+		It("returns a slice of a range type in a specific schema with a subtype diff function", func() {
+			testhelper.AssertQueryRuns(connection, "CREATE SCHEMA testschema;")
+			defer testhelper.AssertQueryRuns(connection, "DROP SCHEMA testschema CASCADE;")
+			testhelper.AssertQueryRuns(connection, "CREATE FUNCTION testschema.time_subtype_diff(x time, y time) RETURNS float8 AS 'SELECT EXTRACT(EPOCH FROM (x - y))' LANGUAGE sql STRICT IMMUTABLE;")
+			testhelper.AssertQueryRuns(connection, `CREATE TYPE testschema.timerange AS RANGE (
+	SUBTYPE = pg_catalog.time,
+	SUBTYPE_DIFF = testschema.time_subtype_diff
+);`)
+
+			results := backup.GetRangeTypes(connection)
+
+			Expect(len(results)).To(Equal(1))
+
+			expectedRangeType := backup.Type{
+				Oid:            0,
+				Schema:         "testschema",
+				Name:           "timerange",
+				Type:           "r",
+				SubType:        "time without time zone",
+				SubTypeOpClass: "pg_catalog.time_ops",
+				SubTypeDiff:    "testschema.time_subtype_diff",
+			}
+			structmatcher.ExpectStructsToMatchExcluding(&expectedRangeType, &results[0], "Oid")
+		})
+	})
 	Describe("ConstructCompositeTypeDependencies", func() {
 		BeforeEach(func() {
 			testhelper.AssertQueryRuns(connection, "CREATE FUNCTION public.base_fn_in(cstring) RETURNS public.base_type AS 'boolin' LANGUAGE internal")

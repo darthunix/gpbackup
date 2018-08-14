@@ -166,6 +166,10 @@ func RetrieveTypes() ([]Type, MetadataMap, map[uint32]FunctionInfo) {
 	domains := GetDomainTypes(connectionPool)
 	domains = ConstructDomainDependencies(connectionPool, domains)
 	types = append(types, domains...)
+	if connectionPool.Version.AtLeast("6") {
+		ranges := GetRangeTypes(connectionPool)
+		types = append(types, ranges...)
+	}
 	objectCounts["Types"] = len(types)
 	typeMetadata := GetMetadataForObjectType(connectionPool, TYPE_TYPE)
 	return types, typeMetadata, funcInfoMap
