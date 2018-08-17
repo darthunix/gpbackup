@@ -233,6 +233,7 @@ func backupPredata(metadataFile *utils.FileWithByteCount, tables []Relation, tab
 	BackupShellTypes(metadataFile, types)
 	if connectionPool.Version.AtLeast("5") {
 		BackupEnumTypes(metadataFile, typeMetadata)
+		BackupOperatorFamilies(metadataFile)
 	}
 
 	relationMetadata := GetMetadataForObjectType(connectionPool, TYPE_RELATION)
@@ -241,8 +242,11 @@ func backupPredata(metadataFile *utils.FileWithByteCount, tables []Relation, tab
 
 	constraints, conMetadata := RetrieveConstraints()
 	protocols, protoMetadata := RetrieveAndProcessProtocols(funcInfoMap)
+	operators, operatorMetadata := RetrieveOperators()
+	classes, classMetadata := RetrieveOperatorClasses()
 
-	BackupDependentObjects(metadataFile, otherFuncs, types, tables, protocols, functionMetadata, typeMetadata, relationMetadata, protoMetadata, tableDefs, constraints)
+	BackupDependentObjects(metadataFile, otherFuncs, types, tables, protocols, operators, classes, functionMetadata,
+		typeMetadata, relationMetadata, protoMetadata, operatorMetadata, classMetadata, tableDefs, constraints)
 	PrintAlterSequenceStatements(metadataFile, globalTOC, sequences, sequenceOwnerColumns)
 
 	if len(MustGetFlagStringSlice(utils.INCLUDE_SCHEMA)) == 0 {
@@ -261,9 +265,6 @@ func backupPredata(metadataFile *utils.FileWithByteCount, tables []Relation, tab
 	}
 
 	BackupOperators(metadataFile)
-	if connectionPool.Version.AtLeast("5") {
-		BackupOperatorFamilies(metadataFile)
-	}
 	BackupOperatorClasses(metadataFile)
 
 	BackupConversions(metadataFile)

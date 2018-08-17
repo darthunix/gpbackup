@@ -195,6 +195,22 @@ func RetrieveAndProcessProtocols(funcInfoMap map[uint32]FunctionInfo) ([]Externa
 	return protocolsToBackUp, protoMetadata
 }
 
+func RetrieveOperators() ([]Operator, MetadataMap) {
+	gplog.Verbose("Writing CREATE OPERATOR statements to metadata file")
+	operators := GetOperators(connectionPool)
+	objectCounts["Operators"] = len(operators)
+	operatorMetadata := GetMetadataForObjectType(connectionPool, TYPE_OPERATOR)
+	return operators, operatorMetadata
+}
+
+func RetrieveOperatorClasses() ([]OperatorClass, MetadataMap) {
+	gplog.Verbose("Writing CREATE OPERATOR CLASS statements to metadata file")
+	operatorClasses := GetOperatorClasses(connectionPool)
+	objectCounts["Operator Classes"] = len(operatorClasses)
+	operatorClassMetadata := GetMetadataForObjectType(connectionPool, TYPE_OPERATORCLASS)
+	return operatorClasses, operatorClassMetadata
+}
+
 /*
  * Generic metadata wrapper functions
  */
@@ -336,8 +352,9 @@ func BackupCreateSequences(metadataFile *utils.FileWithByteCount, sequences []Se
 
 // This function is fairly unwieldy, but there's not really a good way to break it down
 func BackupDependentObjects(metadataFile *utils.FileWithByteCount, otherFuncs []Function, types []Type, tables []Relation,
-	protocols []ExternalProtocol, functionMetadata MetadataMap, typeMetadata MetadataMap, relationMetadata MetadataMap, protoMetadata MetadataMap,
-	tableDefs map[uint32]TableDefinition, constraints []Constraint) {
+	protocols []ExternalProtocol, operators []Operator, classes []OperatorClass, functionMetadata MetadataMap,
+	typeMetadata MetadataMap, relationMetadata MetadataMap, protoMetadata MetadataMap, operatorMetadata MetadataMap,
+	classMetadata MetadataMap, tableDefs map[uint32]TableDefinition, constraints []Constraint) {
 	gplog.Verbose("Writing CREATE FUNCTION statements to metadata file")
 	gplog.Verbose("Writing CREATE TYPE statements for base, composite, and domain types to metadata file")
 	gplog.Verbose("Writing CREATE TABLE statements to metadata file")
@@ -410,28 +427,12 @@ func BackupConversions(metadataFile *utils.FileWithByteCount) {
 	PrintCreateConversionStatements(metadataFile, globalTOC, conversions, convMetadata)
 }
 
-func BackupOperators(metadataFile *utils.FileWithByteCount) {
-	gplog.Verbose("Writing CREATE OPERATOR statements to metadata file")
-	operators := GetOperators(connectionPool)
-	objectCounts["Operators"] = len(operators)
-	operatorMetadata := GetMetadataForObjectType(connectionPool, TYPE_OPERATOR)
-	PrintCreateOperatorStatements(metadataFile, globalTOC, operators, operatorMetadata)
-}
-
 func BackupOperatorFamilies(metadataFile *utils.FileWithByteCount) {
 	gplog.Verbose("Writing CREATE OPERATOR FAMILY statements to metadata file")
 	operatorFamilies := GetOperatorFamilies(connectionPool)
 	objectCounts["Operator Families"] = len(operatorFamilies)
 	operatorFamilyMetadata := GetMetadataForObjectType(connectionPool, TYPE_OPERATORFAMILY)
 	PrintCreateOperatorFamilyStatements(metadataFile, globalTOC, operatorFamilies, operatorFamilyMetadata)
-}
-
-func BackupOperatorClasses(metadataFile *utils.FileWithByteCount) {
-	gplog.Verbose("Writing CREATE OPERATOR CLASS statements to metadata file")
-	operatorClasses := GetOperatorClasses(connectionPool)
-	objectCounts["Operator Classes"] = len(operatorClasses)
-	operatorClassMetadata := GetMetadataForObjectType(connectionPool, TYPE_OPERATORCLASS)
-	PrintCreateOperatorClassStatements(metadataFile, globalTOC, operatorClasses, operatorClassMetadata)
 }
 
 func BackupAggregates(metadataFile *utils.FileWithByteCount, funcInfoMap map[uint32]FunctionInfo) {

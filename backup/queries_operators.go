@@ -25,6 +25,7 @@ type Operator struct {
 	JoinFunction     string
 	CanHash          bool
 	CanMerge         bool
+	Dependencies     []string
 }
 
 func GetOperators(connection *dbconn.DBConn) []Operator {
@@ -240,9 +241,10 @@ ORDER BY amopstrategy
 }
 
 type OperatorClassFunction struct {
-	ClassOid      uint32
-	SupportNumber int
-	FunctionName  string
+	ClassOid         uint32
+	SupportNumber    int
+	FunctionName     string
+	FunctionWithArgs string
 }
 
 func GetOperatorClassFunctions(connection *dbconn.DBConn) map[uint32][]OperatorClassFunction {
